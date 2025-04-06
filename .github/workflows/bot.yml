@@ -1,6 +1,6 @@
 name: Run Telegram Bot
 on:
-  workflow_dispatch:   # Manual trigger
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'  # Auto-restart every 6 hours
 
@@ -17,7 +17,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run bot
         env:
-          BOT_TOKEN: ${{ secrets.8074930432:AAHzmRmuikXPegtamcA3ztqwcROEJLNC9sE }}
-          ADMIN_ID: ${{ secrets.ADMIN_ID }}
-          WHITELIST: ${{ secrets.WHITELIST }}  # Optional
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}  # Uses GitHub Secrets
+          ADMIN_ID: ${{ secrets.ADMIN_ID }}    # Uses GitHub Secrets
         run: python bot.py
