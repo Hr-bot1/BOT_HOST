@@ -2,7 +2,8 @@ import os
 import re
 import asyncio
 import logging
-from telegram import Update
+import time
+from telegram import Update, ChatPermissions
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -33,6 +34,99 @@ URL_PATTERN = re.compile(
     r'https?://\S+|www\.\S+|\S+\.(com|net|org|io|co|xyz|me|info|ru|biz|online|site)\b',
     re.IGNORECASE
 )
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send welcome message when the command /start is issued."""
+    welcome_text = f"""
+🌟 <b>Welcome to URL Restrictor Bot!</b> 🌟
+
+🛡️ <i>Protecting your group from unwanted links</i>
+
+⚙️ <b>Features:</b>
+✅ Auto-deletes URLs from non-admins
+⏳ Temporarily restricts users who post links
+🔐 Whitelist system for allowed domains
+
+📢 <b>Note:</b> This bot is created by <a href="{CREATOR_CHANNEL}">Termux Team BD</a>
+    """
+    await update.message.reply_text(
+        welcome_text,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True
+    )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send help message when the command /help is issued."""
+    help_text = f"""
+🔍 <b>Bot Help</b> 🔍
+
+📜 <b>Functionality:</b>
+- Automatically deletes URLs from regular users
+- Restricts users for {RESTRICT_SECONDS} seconds when they post links
+- Admins can post any links
+
+🛠️ <b>Commands:</b>
+/start - Show welcome message
+/help - Display this help
+/status - Check bot permissions
+/whitelist - Show allowed domains
+
+📢 <i>Maintained by <a href="{CREATOR_CHANNEL}">Termux Team BD</a></i>
+    """
+    await update.message.reply_text(
+        help_text,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True
+    )
+
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check bot status and permissions in a group."""
+    chat = update.effective_chat
+    
+    if chat.type == 'private':
+        await update.message.reply_text("⚠️ This command only works in groups.")
+        return
+    
+    try:
+        bot_member = await context.bot.get_chat_member(chat.id, context.bot.id)
+        
+        status_text = f"""
+🔧 <b>Bot Status Report</b> 🔧
+
+{'✅' if bot_member.status == 'administrator' else '❌'} <b>Admin Status:</b> {'Yes' if bot_member.status == 'administrator' else 'No'}
+{'✅' if (bot_member.status == 'administrator' and bot_member.can_delete_messages) else '❌'} <b>Delete Permission:</b> {'Enabled' if (bot_member.status == 'administrator' and bot_member.can_delete_messages) else 'Disabled'}
+{'✅' if (bot_member.status == 'administrator' and bot_member.can_restrict_members) else '❌'} <b>Restrict Permission:</b> {'Enabled' if (bot_member.status == 'administrator' and bot_member.can_restrict_members) else 'Disabled'}
+
+💡 <i>To fix issues:</i>
+1. Make me admin
+2. Enable all permissions
+        """
+        await update.message.reply_text(
+            status_text,
+            parse_mode=ParseMode.HTML
+        )
+    except Exception as e:
+        logger.error(f"Error checking bot status: {e}")
+        await update.message.reply_text("❌ Error checking bot status.")
+
+async def show_whitelist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show currently whitelisted domains."""
+    if WHITELIST:
+        domains = "\n".join([f"🔹 {domain}" for domain in WHITELIST])
+        message = f"""
+✅ <b>Whitelisted Domains</b> ✅
+
+These websites can be shared by anyone:
+
+{domains}
+        """
+    else:
+        message = "ℹ️ No domains are currently whitelisted."
+    
+    await update.message.reply_text(
+        message,
+        parse_mode=ParseMode.HTML
+    )
 
 async def restrict_user(chat_id, user_id, context, seconds):
     """Restrict user from sending messages temporarily"""
@@ -75,7 +169,7 @@ async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Delete the URL message
             await message.delete()
             
-            # Restrict user for 3 seconds
+            # Restrict user
             await restrict_user(chat.id, user.id, context, RESTRICT_SECONDS)
             
             # Send warning
@@ -94,8 +188,6 @@ async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Error in message handler: {e}")
-
-# [Keep all other functions (start, help_command, etc.) the same as in your original code]
 
 def main():
     """Start the bot"""
