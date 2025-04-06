@@ -89,7 +89,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check bot status and permissions in a group."""
     chat = update.effective_chat
     
-    if chat.type == 'private':
+    if chat.type == 'private', 'public':
         await update.message.reply_text("⚠️ This command only works in groups.")
         return
     
